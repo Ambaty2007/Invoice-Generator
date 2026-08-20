@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledgerly — Invoice Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --ink:#16241f;
+  --ink-soft:#4b6058;
+  --ink-faint:#7c8c85;
+  --paper:#eef1ea;
+  --paper-raised:#fbfbf7;
+  --line:#d3d6c7;
+  --line-strong:#b7bba8;
+  --brass:#a3803c;
+  --brass-dark:#7e6230;
+  --teal:#2f5d5a;
+  --teal-dark:#213f3d;
+  --rust:#a6432f;
+  --rust-bg:#f4e2dc;
+  --gold-bg:#f3ead2;
+  --gold-ink:#7e6230;
+  --teal-bg:#dfe9e6;
+  --grey-bg:#e7e6dc;
+  --shadow-sm:0 1px 2px rgba(22,36,31,0.08);
+  --shadow-md:0 6px 20px rgba(22,36,31,0.10);
+  --radius:3px;
+  --font-display:'Fraunces', serif;
+  --font-body:'Inter', sans-serif;
+  --font-mono:'IBM Plex Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:var(--font-body);
+  background:var(--paper);
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 100% 2.1em;
+  background-attachment:local;
+  color:var(--ink);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:var(--font-display);font-weight:600;letter-spacing:-0.01em;}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+a{color:inherit;}
+button{font-family:var(--font-body);cursor:pointer;}
+input,select,textarea{font-family:var(--font-body);}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+
+/* subtle reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important;}
+}
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+#app{min-height:100vh;}
+
+.auth-shell{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:32px 20px;
+}
+.auth-card{
+  width:100%;
+  max-width:420px;
+  background:var(--paper-raised);
+  border:1px solid var(--line-strong);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-md);
+  padding:40px 36px 32px;
+  position:relative;
+}
+.brandmark{
+  display:flex;align-items:center;gap:10px;margin-bottom:28px;
+}
+.brandmark .seal{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--teal-dark);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--gold-bg);font-family:var(--font-display);font-weight:700;font-size:16px;
+  flex-shrink:0;
+}
+.brandmark .word{font-family:var(--font-display);font-size:22px;font-weight:600;}
+.brandmark .word span{color:var(--brass);}
+
+.auth-card h1{font-size:24px;margin:0 0 6px;}
+.auth-sub{color:var(--ink-soft);font-size:14px;margin:0 0 26px;line-height:1.5;}
+
+.field{margin-bottom:16px;}
+.field label{
+  display:block;font-size:12px;font-weight:600;letter-spacing:0.03em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;
+}
+.field input,.field select,.field textarea{
+  width:100%;padding:10px 12px;border:1px solid var(--line-strong);
+  border-radius:var(--radius);background:#fff;font-size:14.5px;color:var(--ink);
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
+.field-row{display:flex;gap:12px;}
+.field-row .field{flex:1;}
+.field-error{color:var(--rust);font-size:12px;margin-top:5px;display:none;}
+.field.has-error input{border-color:var(--rust);}
+.field.has-error .field-error{display:block;}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 20px;border-radius:var(--radius);border:1px solid transparent;
+  font-size:14px;font-weight:600;letter-spacing:0.01em;transition:all .15s ease;
+}
+.btn-primary{background:var(--teal-dark);color:#fbfbf7;}
+.btn-primary:hover{background:var(--teal);}
+.btn-block{width:100%;}
+.btn-ghost{background:transparent;border-color:var(--line-strong);color:var(--ink);}
+.btn-ghost:hover{border-color:var(--ink-soft);}
+.btn-brass{background:var(--brass);color:#fff;}
+.btn-brass:hover{background:var(--brass-dark);}
+.btn-sm{padding:7px 12px;font-size:13px;}
+.btn-danger{background:transparent;color:var(--rust);border-color:var(--rust-bg);}
+.btn-danger:hover{background:var(--rust-bg);}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+.auth-remember{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 18px;font-size:13px;color:var(--ink-soft);}
+.auth-remember label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.auth-foot{margin-top:22px;text-align:center;font-size:13.5px;color:var(--ink-soft);}
+.auth-foot a{color:var(--teal-dark);font-weight:600;text-decoration:none;border-bottom:1px solid var(--line-strong);}
+.link-btn{background:none;border:none;padding:0;color:var(--teal-dark);font-weight:600;font-size:inherit;text-decoration:underline;text-underline-offset:2px;}
+.form-msg{font-size:13px;padding:10px 12px;border-radius:var(--radius);margin-bottom:16px;display:none;}
+.form-msg.show{display:block;}
+.form-msg.error{background:var(--rust-bg);color:var(--rust);}
+.form-msg.success{background:var(--teal-bg);color:var(--teal-dark);}
+
+/* ============================================================
+   APP SHELL (post-login)
+   ============================================================ */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:230px;flex-shrink:0;background:var(--teal-dark);color:#eef1ea;
+  display:flex;flex-direction:column;padding:24px 16px;position:sticky;top:0;height:100vh;
+}
+.sidebar .brandmark .word{color:#fbfbf7;}
+.sidebar .brandmark .seal{background:var(--brass);color:var(--teal-dark);}
+.sidebar-nav{margin-top:20px;display:flex;flex-direction:column;gap:2px;flex:1;}
+.nav-link{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);
+  color:#cdd8d3;text-decoration:none;font-size:14px;font-weight:500;
+}
+.nav-link .ico{width:16px;text-align:center;font-family:var(--font-mono);font-size:12px;opacity:0.8;}
+.nav-link:hover{background:rgba(255,255,255,0.06);color:#fff;}
+.nav-link.active{background:rgba(255,255,255,0.12);color:#fff;}
+.sidebar-user{border-top:1px solid rgba(255,255,255,0.14);padding-top:14px;margin-top:10px;}
+.sidebar-user .name{font-size:13.5px;font-weight:600;color:#fff;}
+.sidebar-user .biz{font-size:12px;color:#a9bbb4;margin-bottom:10px;}
+
+.main{flex:1;min-width:0;padding:32px 40px 60px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+.topbar h1{font-size:26px;margin:0;}
+.topbar .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--brass-dark);font-weight:700;margin:0 0 4px;}
+
+.mobile-topbar{display:none;}
+
+/* Cards / stats */
+.card{background:var(--paper-raised);border:1px solid var(--line-strong);border-radius:var(--radius);box-shadow:var(--shadow-sm);}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px;}
+.stat-card{padding:20px 22px;}
+.stat-card .label{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);font-weight:600;}
+.stat-card .value{font-family:var(--font-display);font-size:30px;margin-top:6px;}
+.stat-card.accent{border-left:3px solid var(--brass);}
+
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 14px;}
+.section-head h2{font-size:17px;margin:0;}
+.section-head .see-all{font-size:13px;color:var(--teal-dark);font-weight:600;text-decoration:none;}
+
+/* Tables (ledger style) */
+.ledger-table{width:100%;border-collapse:collapse;}
+.ledger-table thead th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--ink-soft);font-weight:700;padding:10px 14px;border-bottom:2px solid var(--ink);
+}
+.ledger-table tbody td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle;}
+.ledger-table tbody tr:hover{background:rgba(163,128,60,0.06);cursor:pointer;}
+.ledger-table tfoot td{padding:10px 14px;}
+.num{font-family:var(--font-mono);text-align:right;}
+.empty-row td{text-align:center;color:var(--ink-faint);padding:32px 14px;font-size:14px;cursor:default;}
+.empty-row:hover{background:none;}
+
+/* Status stamp */
+.stamp{
+  display:inline-block;font-family:var(--font-mono);font-size:10.5px;font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;padding:4px 9px;border-radius:20px;
+  border:1.5px solid currentColor;transform:rotate(-2deg);
+}
+.stamp.draft{color:var(--ink-soft);background:var(--grey-bg);}
+.stamp.generated{color:var(--teal-dark);background:var(--teal-bg);}
+.stamp.pending{color:var(--gold-ink);background:var(--gold-bg);}
+.stamp.paid{color:#2c6b3f;background:#dcecdf;}
+
+/* Dashboard CTA */
+.cta-banner{
+  background:var(--teal-dark);color:#fbfbf7;border-radius:var(--radius);
+  padding:26px 30px;display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:32px;gap:20px;flex-wrap:wrap;
+}
+.cta-banner h2{margin:0 0 4px;font-size:20px;color:#fff;}
+.cta-banner p{margin:0;color:#c3d2cc;font-size:13.5px;}
+
+/* ============================================================
+   INVOICE CREATE FORM
+   ============================================================ */
+.builder-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+.builder-card{padding:22px 24px;margin-bottom:20px;}
+.builder-card h3{font-size:14px;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 16px;color:var(--brass-dark);}
+
+.items-table{width:100%;border-collapse:collapse;margin-bottom:12px;}
+.items-table th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--ink-soft);padding:6px 8px;border-bottom:2px solid var(--ink);}
+.items-table td{padding:6px 8px;border-bottom:1px solid var(--line);}
+.items-table input{width:100%;border:1px solid transparent;background:transparent;padding:7px 6px;border-radius:var(--radius);font-size:13.5px;}
+.items-table input:hover,.items-table input:focus{border-color:var(--line-strong);background:#fff;}
+.items-table .item-total{font-family:var(--font-mono);text-align:right;padding-right:10px;color:var(--ink);white-space:nowrap;}
+.items-table .col-remove{width:34px;text-align:center;}
+.remove-item{background:none;border:none;color:var(--ink-faint);font-size:16px;line-height:1;padding:4px;}
+.remove-item:hover{color:var(--rust);}
+.col-qty{width:70px;}
+.col-price{width:110px;}
+
+.totals-box{margin-left:auto;width:280px;}
+.totals-box .row{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;color:var(--ink-soft);}
+.totals-box .row.grand{border-top:2px solid var(--ink);margin-top:6px;padding-top:12px;font-size:19px;font-weight:700;color:var(--ink);font-family:var(--font-display);}
+.totals-box .row .amt{font-family:var(--font-mono);color:var(--ink);}
+.totals-box .row.grand .amt{font-family:var(--font-mono);}
+.pct-input{width:60px;text-align:right;padding:5px 6px;border:1px solid var(--line-strong);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;}
+
+.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;}
+
+/* ============================================================
+   INVOICE PREVIEW / PRINT
+   ============================================================ */
+.invoice-sheet{
+  background:#fff;max-width:800px;margin:0 auto;padding:52px 56px;
+  border:1px solid var(--line-strong);box-shadow:var(--shadow-md);
+  background-image:none;
+}
+.inv-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:3px double var(--ink);}
+.inv-head .biz-name{font-family:var(--font-display);font-size:24px;margin:0 0 4px;}
+.inv-head .biz-meta{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+.inv-head-right{text-align:right;}
+.inv-head-right .inv-title{font-family:var(--font-display);font-size:30px;letter-spacing:0.02em;color:var(--brass-dark);margin:0;}
+.inv-head-right .inv-num{font-family:var(--font-mono);font-size:14px;color:var(--ink-soft);margin-top:4px;}
+
+.inv-meta-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:30px;}
+.inv-meta-grid .label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;margin-bottom:5px;}
+.inv-meta-grid .val{font-size:14px;}
+.inv-meta-grid .val.mono{font-family:var(--font-mono);}
+
+.bill-to{margin-bottom:28px;}
+.bill-to .label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;margin-bottom:6px;}
+.bill-to .cust-name{font-weight:600;font-size:15px;}
+.bill-to .cust-meta{font-size:13px;color:var(--ink-soft);line-height:1.6;}
+
+.inv-items{width:100%;border-collapse:collapse;margin-bottom:22px;}
+.inv-items th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;padding:8px 4px;border-bottom:2px solid var(--ink);color:var(--ink-soft);}
+.inv-items td{padding:11px 4px;border-bottom:1px solid var(--line);font-size:13.5px;}
+.inv-items td.desc-cell .item-desc{color:var(--ink-faint);font-size:12px;margin-top:2px;}
+.inv-items .num{font-family:var(--font-mono);}
+
+.inv-totals{margin-left:auto;width:260px;margin-bottom:30px;}
+.inv-totals .row{display:flex;justify-content:space-between;padding:6px 0;font-size:13.5px;color:var(--ink-soft);}
+.inv-totals .row.grand{border-top:2px solid var(--ink);margin-top:6px;padding-top:12px;font-size:18px;font-weight:700;color:var(--ink);}
+.inv-totals .amt{font-family:var(--font-mono);}
+
+.inv-foot{display:flex;justify-content:space-between;gap:30px;padding-top:20px;border-top:1px solid var(--line);}
+.inv-foot .label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;margin-bottom:6px;}
+.inv-foot .block{flex:1;font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+
+.inv-pay-sign{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:26px;padding-top:20px;border-top:1px solid var(--line);flex-wrap:wrap;}
+.pay-block .label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;margin-bottom:8px;}
+.pay-block img{display:block;border:1px solid var(--line);padding:5px;background:#fff;width:110px;height:110px;}
+.pay-block .upi-id{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);margin-top:6px;}
+.sign-block{text-align:center;min-width:200px;}
+.sign-block .sig-slot{min-height:54px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:6px;}
+.sign-block .sig-img{max-height:56px;max-width:220px;}
+.sign-block .sig-line{border-top:1.5px solid var(--ink);width:220px;margin:0 auto 8px;}
+.sign-block .sig-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;}
+.sign-block .sig-name{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+
+/* Signature pad (profile) */
+.sig-pad-card h3{font-family:var(--font-display);font-size:16px;margin:0 0 6px;font-weight:600;}
+#sigPad{width:100%;max-width:360px;height:auto;aspect-ratio:360/140;border:1px solid var(--line-strong);border-radius:var(--radius);background:#fff;touch-action:none;cursor:crosshair;}
+
+.preview-toolbar{max-width:800px;margin:0 auto 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.preview-toolbar .left{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+/* ============================================================
+   HISTORY / SEARCH
+   ============================================================ */
+.filter-bar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.filter-bar input[type=text]{flex:1;min-width:200px;padding:10px 14px;border:1px solid var(--line-strong);border-radius:var(--radius);font-size:14px;background:#fff;}
+.filter-bar select{padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--radius);background:#fff;font-size:14px;}
+
+/* ============================================================
+   PROFILE
+   ============================================================ */
+.profile-card{max-width:560px;padding:28px 30px;}
+
+/* ============================================================
+   UTIL / RESPONSIVE
+   ============================================================ */
+.helper-text{font-size:12.5px;color:var(--ink-faint);margin-top:4px;}
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;
+  padding:12px 18px;border-radius:var(--radius);font-size:13.5px;box-shadow:var(--shadow-md);
+  opacity:0;transform:translateY(8px);transition:all .25s ease;pointer-events:none;z-index:999;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+@media (max-width: 880px){
+  .builder-grid{grid-template-columns:1fr;}
+  .sidebar{position:fixed;left:-240px;z-index:50;transition:left .2s ease;box-shadow:var(--shadow-md);}
+  .sidebar.open{left:0;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;background:var(--teal-dark);color:#fff;position:sticky;top:0;z-index:40;
+  }
+  .mobile-topbar .brandmark{margin:0;}
+  .mobile-topbar button{background:none;border:none;color:#fff;font-size:20px;}
+  .shell{flex-direction:column;}
+  .main{padding:22px 18px 50px;}
+  .invoice-sheet{padding:28px 20px;}
+  .inv-head{flex-direction:column;gap:16px;}
+  .inv-head-right{text-align:left;}
+  .inv-meta-grid{grid-template-columns:1fr 1fr;}
+  .auth-card{padding:30px 22px;}
+}
+
+@media print{
+  body{background:#fff;}
+  .no-print{display:none !important;}
+  .shell{display:block;}
+  .main{padding:0;}
+  .invoice-sheet{box-shadow:none;border:none;max-width:100%;padding:0;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ================================================================
+   STORAGE HELPERS
+   ================================================================ */
+const DB = {
+  users: 'ig_users',
+  session: 'ig_session',
+  invoices: 'ig_invoices'
+};
+function getAll(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
+function setAll(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function getSession(){ try{ return JSON.parse(localStorage.getItem(DB.session)); }catch(e){ return null; } }
+function setSession(userId, remember){
+  const s = { userId, remember: !!remember };
+  localStorage.setItem(DB.session, JSON.stringify(s));
+}
+function clearSession(){ localStorage.removeItem(DB.session); }
+function currentUser(){
+  const s = getSession();
+  if(!s) return null;
+  return getAll(DB.users).find(u => u.id === s.userId) || null;
+}
+
+/* ================================================================
+   VALIDATION HELPERS
+   ================================================================ */
+function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function fmtMoney(n){
+  n = Number(n)||0;
+  return n.toLocaleString('en-IN',{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const dt = new Date(d+'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* ================================================================
+   SIGNATURE PAD (mouse / touch / stylus via Pointer Events)
+   ================================================================ */
+function initSignaturePad(canvas, existingDataUrl){
+  const ctx = canvas.getContext('2d');
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#16241f';
+  let drawing = false;
+  let hasDrawing = false;
+
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
+  function start(e){
+    drawing = true; hasDrawing = true;
+    const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    canvas.setPointerCapture(e.pointerId);
+  }
+  function move(e){
+    if(!drawing) return;
+    const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  }
+  function end(){ drawing = false; }
+
+  canvas.addEventListener('pointerdown', start);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerleave', end);
+
+  if(existingDataUrl){
+    const img = new Image();
+    img.onload = ()=> ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.src = existingDataUrl;
+    hasDrawing = true;
+  }
+
+  return {
+    clear(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasDrawing = false; },
+    isEmpty(){ return !hasDrawing; },
+    toDataURL(){ return canvas.toDataURL('image/png'); }
+  };
+}
+
+/* ================================================================
+   UPI PAYMENT QR
+   ================================================================ */
+function buildUpiLink(invoice){
+  const upiId = invoice.seller && invoice.seller.upiId;
+  if(!upiId) return null;
+  const params = new URLSearchParams({
+    pa: upiId,
+    pn: invoice.seller.name || 'Merchant',
+    am: Number(invoice.grandTotal || 0).toFixed(2),
+    cu: 'INR',
+    tn: 'Invoice ' + invoice.invoiceNumber
+  });
+  return 'upi://pay?' + params.toString();
+}
+function qrImageUrl(data, size){
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(()=> t.classList.remove('show'), 2400);
+}
+
+/* ================================================================
+   ROUTER
+   ================================================================ */
+const routes = {
+  '/login': renderLogin,
+  '/register': renderRegister,
+  '/dashboard': guarded(renderDashboard),
+  '/create': guarded(renderCreateInvoice),
+  '/edit': guarded(renderCreateInvoice),
+  '/preview': guarded(renderPreview),
+  '/history': guarded(renderHistory),
+  '/profile': guarded(renderProfile),
+};
+
+function guarded(fn){
+  return function(params){
+    if(!currentUser()){ location.hash = '#/login'; return; }
+    fn(params);
+  };
+}
+
+function parseHash(){
+  const raw = location.hash.replace(/^#/, '') || '/login';
+  const [path, qs] = raw.split('?');
+  const params = new URLSearchParams(qs || '');
+  return { path: path || '/login', params };
+}
+
+function route(){
+  const { path, params } = parseHash();
+  const handler = routes[path];
+  const app = document.getElementById('app');
+  if(!handler){ location.hash = '#/login'; return; }
+  app.innerHTML = '';
+  handler(params);
+}
+
+window.addEventListener('hashchange', route);
+window.addEventListener('DOMContentLoaded', ()=>{
+  if(!location.hash) location.hash = currentUser() ? '#/dashboard' : '#/login';
+  route();
+});
+
+/* ================================================================
+   SHARED CHROME (sidebar + topbar) FOR APP VIEWS
+   ================================================================ */
+function appShell(activePath, title, eyebrow, contentHTML){
+  const user = currentUser();
+  const nav = [
+    {path:'/dashboard', label:'Dashboard', ico:'D'},
+    {path:'/create', label:'New Invoice', ico:'+'},
+    {path:'/history', label:'Invoice History', ico:'H'},
+    {path:'/profile', label:'Profile', ico:'P'},
+  ];
+  const navHTML = nav.map(n => `
+    <a class="nav-link ${activePath===n.path?'active':''}" href="#${n.path}">
+      <span class="ico">${n.ico}</span>${n.label}
+    </a>`).join('');
+
+  return `
+  <div class="shell">
+    <div class="mobile-topbar no-print">
+      <div class="brandmark"><div class="seal">L</div><div class="word">Ledger<span>ly</span></div></div>
+      <button id="menuToggle" aria-label="Open menu">&#9776;</button>
+    </div>
+    <aside class="sidebar no-print" id="sidebar">
+      <div class="brandmark"><div class="seal">L</div><div class="word">Ledger<span>ly</span></div></div>
+      <nav class="sidebar-nav">${navHTML}</nav>
+      <div class="sidebar-user">
+        <div class="name">${escapeHTML(user?.name || '')}</div>
+        <div class="biz">${escapeHTML(user?.businessName || 'No business name set')}</div>
+        <button class="btn btn-ghost btn-sm btn-block" id="logoutBtn" style="border-color:rgba(255,255,255,0.25);color:#eef1ea;">Log out</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          ${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ''}
+          <h1>${title}</h1>
+        </div>
+      </div>
+      <div id="viewContent">${contentHTML}</div>
+    </main>
+  </div>`;
+}
+
+function mountShellEvents(){
+  const toggle = document.getElementById('menuToggle');
+  const sidebar = document.getElementById('sidebar');
+  if(toggle){ toggle.addEventListener('click', ()=> sidebar.classList.toggle('open')); }
+  const logout = document.getElementById('logoutBtn');
+  if(logout){ logout.addEventListener('click', ()=>{ clearSession(); location.hash = '#/login'; }); }
+}
+
+function escapeHTML(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ================================================================
+   VIEW: LOGIN
+   ================================================================ */
+function renderLogin(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="brandmark"><div class="seal">L</div><div class="word">Ledger<span>ly</span></div></div>
+      <h1>Welcome back</h1>
+      <p class="auth-sub">Log in to pick up where you left off.</p>
+      <div id="formMsg" class="form-msg"></div>
+      <form id="loginForm" novalidate>
+        <div class="field" id="f-email">
+          <label for="email">Email address</label>
+          <input type="email" id="email" autocomplete="email" placeholder="you@business.com">
+          <div class="field-error">Enter a valid email address.</div>
+        </div>
+        <div class="field" id="f-password">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" placeholder="••••••••">
+          <div class="field-error">Enter your password.</div>
+        </div>
+        <div class="auth-remember">
+          <label><input type="checkbox" id="remember"> Remember me</label>
+          <button type="button" class="link-btn" id="forgotBtn">Forgot password?</button>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+      <p class="auth-foot">New to Ledgerly? <a href="#/register">Create an account</a></p>
+    </div>
+  </div>`;
+
+  document.getElementById('forgotBtn').addEventListener('click', ()=>{
+    const email = document.getElementById('email').value.trim();
+    const msg = document.getElementById('formMsg');
+    if(!email || !isValidEmail(email)){
+      msg.textContent = 'Enter your account email above first, then tap "Forgot password?".';
+      msg.className = 'form-msg error show';
+      return;
+    }
+    const user = getAll(DB.users).find(u => u.email.toLowerCase() === email.toLowerCase());
+    if(!user){
+      msg.textContent = 'No account found with that email.';
+      msg.className = 'form-msg error show';
+      return;
+    }
+    msg.textContent = `This is a local demo with no email server, so here's your password reminder: "${user.password}". In production this would be sent securely by email.`;
+    msg.className = 'form-msg success show';
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    let valid = true;
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const fEmail = document.getElementById('f-email');
+    const fPass = document.getElementById('f-password');
+    fEmail.classList.remove('has-error'); fPass.classList.remove('has-error');
+
+    if(!isValidEmail(email)){ fEmail.classList.add('has-error'); valid = false; }
+    if(!password){ fPass.classList.add('has-error'); valid = false; }
+    if(!valid) return;
+
+    const users = getAll(DB.users);
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const msg = document.getElementById('formMsg');
+    if(!user || user.password !== password){
+      msg.textContent = 'Incorrect email or password. Please try again.';
+      msg.className = 'form-msg error show';
+      return;
+    }
+    setSession(user.id, document.getElementById('remember').checked);
+    location.hash = '#/dashboard';
+  });
+}
+
+/* ================================================================
+   VIEW: REGISTER
+   ================================================================ */
+function renderRegister(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="brandmark"><div class="seal">L</div><div class="word">Ledger<span>ly</span></div></div>
+      <h1>Create your account</h1>
+      <p class="auth-sub">Set up an account to start generating invoices.</p>
+      <div id="formMsg" class="form-msg"></div>
+      <form id="regForm" novalidate>
+        <div class="field" id="f-name">
+          <label for="name">Full name</label>
+          <input type="text" id="name" autocomplete="name" placeholder="Jordan Rivera">
+          <div class="field-error">Enter your full name.</div>
+        </div>
+        <div class="field" id="f-email">
+          <label for="email">Email address</label>
+          <input type="email" id="email" autocomplete="email" placeholder="you@business.com">
+          <div class="field-error">Enter a valid email address.</div>
+        </div>
+        <div class="field" id="f-password">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="new-password" placeholder="At least 6 characters">
+          <div class="field-error">Password must be at least 6 characters.</div>
+        </div>
+        <div class="field" id="f-confirm">
+          <label for="confirm">Confirm password</label>
+          <input type="password" id="confirm" autocomplete="new-password" placeholder="Re-enter password">
+          <div class="field-error">Passwords do not match.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+      </form>
+      <p class="auth-foot">Already have an account? <a href="#/login">Log in</a></p>
+    </div>
+  </div>`;
+
+  document.getElementById('regForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm').value;
+
+    ['name','email','password','confirm'].forEach(id => document.getElementById('f-'+id).classList.remove('has-error'));
+    let valid = true;
+    if(!name){ document.getElementById('f-name').classList.add('has-error'); valid = false; }
+    if(!isValidEmail(email)){ document.getElementById('f-email').classList.add('has-error'); valid = false; }
+    if(!password || password.length < 6){ document.getElementById('f-password').classList.add('has-error'); valid = false; }
+    if(confirm !== password){ document.getElementById('f-confirm').classList.add('has-error'); valid = false; }
+    if(!valid) return;
+
+    const users = getAll(DB.users);
+    const msg = document.getElementById('formMsg');
+    if(users.some(u => u.email.toLowerCase() === email.toLowerCase())){
+      msg.textContent = 'An account with this email already exists. Try logging in instead.';
+      msg.className = 'form-msg error show';
+      return;
+    }
+    const newUser = {
+      id: uid('u'), name, email, password,
+      businessName:'', phone:'', address:''
+    };
+    users.push(newUser);
+    setAll(DB.users, users);
+    setSession(newUser.id, true);
+    showToast('Account created — welcome to Ledgerly.');
+    location.hash = '#/dashboard';
+  });
+}
+
+/* ================================================================
+   VIEW: DASHBOARD
+   ================================================================ */
+function renderDashboard(){
+  const user = currentUser();
+  const invoices = getAll(DB.invoices).filter(i => i.userId === user.id)
+    .sort((a,b)=> b.createdAt - a.createdAt);
+
+  const total = invoices.length;
+  const totalValue = invoices.reduce((s,i)=> s + i.grandTotal, 0);
+  const paidCount = invoices.filter(i=>i.status==='Paid').length;
+  const pendingCount = invoices.filter(i=>i.status==='Pending').length;
+
+  const recent = invoices.slice(0,5);
+  const rows = recent.length ? recent.map(rowHTML).join('') :
+    `<tr class="empty-row"><td colspan="5">No invoices yet. Create your first one to see it here.</td></tr>`;
+
+  const content = `
+    <div class="cta-banner">
+      <div>
+        <h2>Ready to bill a client?</h2>
+        <p>Build a new invoice with automatic totals in a couple of minutes.</p>
+      </div>
+      <a href="#/create" class="btn btn-brass">+ Create New Invoice</a>
+    </div>
+
+    <div class="stat-grid">
+      <div class="card stat-card accent"><div class="label">Total Invoices</div><div class="value">${total}</div></div>
+      <div class="card stat-card"><div class="label">Total Billed</div><div class="value mono">₹${fmtMoney(totalValue)}</div></div>
+      <div class="card stat-card"><div class="label">Paid</div><div class="value">${paidCount}</div></div>
+      <div class="card stat-card"><div class="label">Pending</div><div class="value">${pendingCount}</div></div>
+    </div>
+
+    <div class="card" style="padding:22px 24px;">
+      <div class="section-head">
+        <h2>Recent Invoices</h2>
+        <a class="see-all" href="#/history">View all →</a>
+      </div>
+      <table class="ledger-table">
+        <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th class="num">Amount</th><th>Status</th></tr></thead>
+        <tbody id="recentBody">${rows}</tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('app').innerHTML = appShell('/dashboard', `Welcome, ${escapeHTML(user.name.split(' ')[0])}`, 'Dashboard', content);
+  mountShellEvents();
+
+  document.querySelectorAll('#recentBody tr[data-id]').forEach(tr=>{
+    tr.addEventListener('click', ()=> location.hash = '#/preview?id='+tr.dataset.id);
+  });
+}
+
+function rowHTML(inv){
+  return `<tr data-id="${inv.id}">
+    <td class="mono">${escapeHTML(inv.invoiceNumber)}</td>
+    <td>${escapeHTML(inv.customer.name)}</td>
+    <td>${fmtDate(inv.invoiceDate)}</td>
+    <td class="num">₹${fmtMoney(inv.grandTotal)}</td>
+    <td><span class="stamp ${inv.status.toLowerCase()}">${inv.status}</span></td>
+  </tr>`;
+}
+
+/* ================================================================
+   VIEW: CREATE / EDIT INVOICE
+   ================================================================ */
+let builderItems = [];
+let builderEditId = null;
+
+function blankItem(){ return { id: uid('it'), name:'', description:'', qty:1, price:0 }; }
+
+function renderCreateInvoice(params){
+  const user = currentUser();
+  const editId = params.get('id');
+  let invoice = null;
+  if(editId){
+    invoice = getAll(DB.invoices).find(i => i.id === editId && i.userId === user.id);
+  }
+  builderEditId = invoice ? invoice.id : null;
+  builderItems = invoice ? invoice.items.map(i=>({...i})) : [blankItem()];
+
+  const seller = invoice ? invoice.seller : {
+    name: user.businessName || '', address: user.address || '', email: user.email || '', phone: user.phone || '', upiId: user.upiId || ''
+  };
+  const customer = invoice ? invoice.customer : { name:'', address:'', email:'', phone:'' };
+  const invoiceNumber = invoice ? invoice.invoiceNumber : nextInvoiceNumber(user.id);
+  const invoiceDate = invoice ? invoice.invoiceDate : todayISO();
+  const dueDate = invoice ? invoice.dueDate : '';
+  const discountPct = invoice ? invoice.discountPct : 0;
+  const taxPct = invoice ? invoice.taxPct : 0;
+  const notes = invoice ? invoice.notes : '';
+  const paymentTerms = invoice ? invoice.paymentTerms : 'Due within 15 days of invoice date.';
+
+  const content = `
+    <div id="createMsg" class="form-msg"></div>
+    <div class="builder-grid">
+      <div class="card builder-card">
+        <h3>Seller Information</h3>
+        <div class="field"><label>Business / Company Name</label><input id="s_name" value="${escapeHTML(seller.name)}" placeholder="Your Business Name"></div>
+        <div class="field"><label>Address</label><input id="s_address" value="${escapeHTML(seller.address)}" placeholder="Street, City, State"></div>
+        <div class="field-row">
+          <div class="field"><label>Email</label><input id="s_email" type="email" value="${escapeHTML(seller.email)}" placeholder="you@business.com"></div>
+          <div class="field"><label>Phone</label><input id="s_phone" value="${escapeHTML(seller.phone)}" placeholder="+91 00000 00000"></div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>UPI ID (optional — shows a payment QR on the invoice)</label>
+          <input id="s_upi" value="${escapeHTML(seller.upiId || '')}" placeholder="yourname@bank">
+        </div>
+      </div>
+      <div class="card builder-card">
+        <h3>Customer Information</h3>
+        <div class="field" id="f-c_name"><label>Customer Name</label><input id="c_name" value="${escapeHTML(customer.name)}" placeholder="Client or company name"><div class="field-error">Customer name is required.</div></div>
+        <div class="field"><label>Customer Address</label><input id="c_address" value="${escapeHTML(customer.address)}" placeholder="Street, City, State"></div>
+        <div class="field-row">
+          <div class="field"><label>Customer Email</label><input id="c_email" type="email" value="${escapeHTML(customer.email)}" placeholder="client@email.com"></div>
+          <div class="field"><label>Customer Phone</label><input id="c_phone" value="${escapeHTML(customer.phone)}" placeholder="+91 00000 00000"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card builder-card">
+      <h3>Invoice Information</h3>
+      <div class="field-row">
+        <div class="field"><label>Invoice Number</label><input id="i_number" class="mono" value="${escapeHTML(invoiceNumber)}"></div>
+        <div class="field"><label>Invoice Date</label><input id="i_date" type="date" value="${invoiceDate}"></div>
+        <div class="field"><label>Due Date</label><input id="i_due" type="date" value="${dueDate}"></div>
+      </div>
+    </div>
+
+    <div class="card builder-card">
+      <h3>Products / Services</h3>
+      <table class="items-table" id="itemsTable">
+        <thead><tr>
+          <th>Item</th><th>Description</th><th class="col-qty">Qty</th><th class="col-price">Unit Price</th><th>Total</th><th class="col-remove"></th>
+        </tr></thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+      <button type="button" class="btn btn-ghost btn-sm" id="addItemBtn">+ Add Item</button>
+    </div>
+
+    <div class="card builder-card">
+      <h3>Discount, Tax &amp; Totals</h3>
+      <div class="totals-box">
+        <div class="row"><span>Subtotal</span><span class="amt" id="t_subtotal">₹0.00</span></div>
+        <div class="row"><span>Discount (<input type="number" class="pct-input" id="i_discount" value="${discountPct}" min="0" max="100" step="0.1">%)</span><span class="amt" id="t_discount">−₹0.00</span></div>
+        <div class="row"><span>Tax (<input type="number" class="pct-input" id="i_tax" value="${taxPct}" min="0" max="100" step="0.1">%)</span><span class="amt" id="t_tax">+₹0.00</span></div>
+        <div class="row grand"><span>Grand Total</span><span class="amt" id="t_grand">₹0.00</span></div>
+      </div>
+    </div>
+
+    <div class="card builder-card">
+      <h3>Payment Terms &amp; Notes</h3>
+      <div class="field"><label>Payment Terms</label><textarea id="i_terms" rows="2">${escapeHTML(paymentTerms)}</textarea></div>
+      <div class="field" style="margin-bottom:0;"><label>Notes</label><textarea id="i_notes" rows="2" placeholder="Thank you for your business.">${escapeHTML(notes)}</textarea></div>
+    </div>
+
+    <div class="form-actions">
+      <a href="#/dashboard" class="btn btn-ghost">Cancel</a>
+      <button type="button" class="btn btn-ghost" id="previewBtn">Preview</button>
+      <button type="button" class="btn btn-primary" id="generateBtn">Generate Invoice</button>
+    </div>
+  `;
+
+  document.getElementById('app').innerHTML = appShell('/create', invoice ? 'Edit Invoice' : 'Create Invoice', 'Invoice Builder', content);
+  mountShellEvents();
+
+  renderItemsBody();
+  recalcTotals();
+
+  document.getElementById('addItemBtn').addEventListener('click', ()=>{
+    builderItems.push(blankItem());
+    renderItemsBody();
+    recalcTotals();
+  });
+  document.getElementById('i_discount').addEventListener('input', recalcTotals);
+  document.getElementById('i_tax').addEventListener('input', recalcTotals);
+
+  document.getElementById('previewBtn').addEventListener('click', ()=> handleSave('Draft', true));
+  document.getElementById('generateBtn').addEventListener('click', ()=> handleSave('Generated', true));
+}
+
+function renderItemsBody(){
+  const body = document.getElementById('itemsBody');
+  body.innerHTML = builderItems.map((item, idx)=> `
+    <tr data-idx="${idx}">
+      <td><input class="it-name" value="${escapeHTML(item.name)}" placeholder="Web design services"></td>
+      <td><input class="it-desc" value="${escapeHTML(item.description)}" placeholder="Optional details"></td>
+      <td><input class="it-qty mono" type="number" min="0" step="1" value="${item.qty}"></td>
+      <td><input class="it-price mono" type="number" min="0" step="0.01" value="${item.price}"></td>
+      <td class="item-total mono" id="itemTotal-${item.id}">₹${fmtMoney(item.qty*item.price)}</td>
+      <td class="col-remove"><button type="button" class="remove-item" title="Remove item" data-idx="${idx}">&times;</button></td>
+    </tr>`).join('');
+
+  body.querySelectorAll('tr').forEach(tr=>{
+    const idx = Number(tr.dataset.idx);
+    tr.querySelector('.it-name').addEventListener('input', e=>{ builderItems[idx].name = e.target.value; });
+    tr.querySelector('.it-desc').addEventListener('input', e=>{ builderItems[idx].description = e.target.value; });
+    tr.querySelector('.it-qty').addEventListener('input', e=>{ builderItems[idx].qty = Number(e.target.value)||0; updateItemRow(idx); });
+    tr.querySelector('.it-price').addEventListener('input', e=>{ builderItems[idx].price = Number(e.target.value)||0; updateItemRow(idx); });
+  });
+  body.querySelectorAll('.remove-item').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.dataset.idx);
+      if(builderItems.length === 1){ showToast('An invoice needs at least one item.'); return; }
+      builderItems.splice(idx,1);
+      renderItemsBody();
+      recalcTotals();
+    });
+  });
+}
+
+function updateItemRow(idx){
+  const item = builderItems[idx];
+  const cell = document.getElementById('itemTotal-'+item.id);
+  if(cell) cell.textContent = '₹' + fmtMoney(item.qty * item.price);
+  recalcTotals();
+}
+
+function computeTotals(items, discountPct, taxPct){
+  const subtotal = items.reduce((s,i)=> s + (Number(i.qty)||0)*(Number(i.price)||0), 0);
+  const discount = subtotal * (Number(discountPct)||0) / 100;
+  const taxableAmount = subtotal - discount;
+  const tax = taxableAmount * (Number(taxPct)||0) / 100;
+  const grandTotal = subtotal - discount + tax;
+  return { subtotal, discount, tax, grandTotal };
+}
+
+function recalcTotals(){
+  const discountPct = Number(document.getElementById('i_discount').value)||0;
+  const taxPct = Number(document.getElementById('i_tax').value)||0;
+  const { subtotal, discount, tax, grandTotal } = computeTotals(builderItems, discountPct, taxPct);
+  document.getElementById('t_subtotal').textContent = '₹' + fmtMoney(subtotal);
+  document.getElementById('t_discount').textContent = '−₹' + fmtMoney(discount);
+  document.getElementById('t_tax').textContent = '+₹' + fmtMoney(tax);
+  document.getElementById('t_grand').textContent = '₹' + fmtMoney(grandTotal);
+}
+
+function nextInvoiceNumber(userId){
+  const count = getAll(DB.invoices).filter(i=>i.userId===userId).length;
+  const year = new Date().getFullYear();
+  return `INV-${year}-${String(count+1).padStart(3,'0')}`;
+}
+
+function handleSave(status, goToPreview){
+  const msg = document.getElementById('createMsg');
+  msg.className = 'form-msg';
+
+  const cNameField = document.getElementById('f-c_name');
+  cNameField.classList.remove('has-error');
+  const customerName = document.getElementById('c_name').value.trim();
+
+  const cleanItems = builderItems
+    .map(i=>({...i, name: i.name.trim()}))
+    .filter(i => i.name || i.qty || i.price);
+
+  let valid = true;
+  if(!customerName){ cNameField.classList.add('has-error'); valid = false; }
+  if(cleanItems.length === 0){
+    msg.textContent = 'Add at least one product or service with a name.';
+    msg.className = 'form-msg error show';
+    valid = false;
+  }
+  const hasInvalidQtyPrice = cleanItems.some(i => Number(i.qty) < 0 || Number(i.price) < 0 || isNaN(i.qty) || isNaN(i.price));
+  if(hasInvalidQtyPrice){
+    msg.textContent = 'Quantity and price must be valid, non-negative numbers.';
+    msg.className = 'form-msg error show';
+    valid = false;
+  }
+  if(!valid){
+    if(!msg.textContent){ msg.textContent = 'Please fix the highlighted fields before continuing.'; msg.className = 'form-msg error show'; }
+    return;
+  }
+
+  const user = currentUser();
+  const discountPct = Number(document.getElementById('i_discount').value)||0;
+  const taxPct = Number(document.getElementById('i_tax').value)||0;
+  const totals = computeTotals(cleanItems, discountPct, taxPct);
+
+  const invoices = getAll(DB.invoices);
+  const existingIdx = builderEditId ? invoices.findIndex(i=>i.id===builderEditId) : -1;
+
+  const invoiceData = {
+    id: builderEditId || uid('inv'),
+    userId: user.id,
+    invoiceNumber: document.getElementById('i_number').value.trim() || nextInvoiceNumber(user.id),
+    invoiceDate: document.getElementById('i_date').value || todayISO(),
+    dueDate: document.getElementById('i_due').value || '',
+    seller: {
+      name: document.getElementById('s_name').value.trim(),
+      address: document.getElementById('s_address').value.trim(),
+      email: document.getElementById('s_email').value.trim(),
+      phone: document.getElementById('s_phone').value.trim(),
+      upiId: document.getElementById('s_upi').value.trim(),
+    },
+    customer: {
+      name: customerName,
+      address: document.getElementById('c_address').value.trim(),
+      email: document.getElementById('c_email').value.trim(),
+      phone: document.getElementById('c_phone').value.trim(),
+    },
+    items: cleanItems,
+    discountPct, taxPct,
+    subtotal: totals.subtotal, discount: totals.discount, tax: totals.tax, grandTotal: totals.grandTotal,
+    paymentTerms: document.getElementById('i_terms').value.trim(),
+    notes: document.getElementById('i_notes').value.trim(),
+    status: existingIdx >= 0 ? invoices[existingIdx].status : status,
+    createdAt: existingIdx >= 0 ? invoices[existingIdx].createdAt : Date.now(),
+    signature: user.signature || (existingIdx >= 0 ? invoices[existingIdx].signature : '') || '',
+  };
+
+  if(existingIdx >= 0){ invoices[existingIdx] = invoiceData; } else { invoices.push(invoiceData); }
+  setAll(DB.invoices, invoices);
+  showToast(status === 'Generated' ? 'Invoice generated.' : 'Invoice saved.');
+  if(goToPreview){ location.hash = '#/preview?id=' + invoiceData.id; }
+}
+
+/* ================================================================
+   VIEW: PREVIEW
+   ================================================================ */
+function renderPreview(params){
+  const user = currentUser();
+  const id = params.get('id');
+  const invoice = getAll(DB.invoices).find(i => i.id === id && i.userId === user.id);
+
+  if(!invoice){
+    document.getElementById('app').innerHTML = appShell('/history', 'Invoice not found', 'Preview',
+      `<p>We couldn't find that invoice. It may have been deleted.</p><a class="btn btn-primary" href="#/history">Back to history</a>`);
+    mountShellEvents();
+    return;
+  }
+
+  const itemsRows = invoice.items.map(it => `
+    <tr>
+      <td class="desc-cell">${escapeHTML(it.name)}${it.description ? `<div class="item-desc">${escapeHTML(it.description)}</div>` : ''}</td>
+      <td class="num">${it.qty}</td>
+      <td class="num">₹${fmtMoney(it.price)}</td>
+      <td class="num">₹${fmtMoney(it.qty*it.price)}</td>
+    </tr>`).join('');
+
+  const statusOptions = ['Draft','Generated','Pending','Paid'].map(s=>
+    `<option value="${s}" ${invoice.status===s?'selected':''}>${s}</option>`).join('');
+
+  const upiLink = buildUpiLink(invoice);
+
+  const sheet = `
+    <div class="invoice-sheet" id="invoiceSheet">
+      <div class="inv-head">
+        <div>
+          <p class="biz-name">${escapeHTML(invoice.seller.name || 'Your Business')}</p>
+          <div class="biz-meta">
+            ${escapeHTML(invoice.seller.address || '')}<br>
+            ${escapeHTML(invoice.seller.email || '')}${invoice.seller.email && invoice.seller.phone ? ' · ' : ''}${escapeHTML(invoice.seller.phone || '')}
+          </div>
+        </div>
+        <div class="inv-head-right">
+          <p class="inv-title">INVOICE</p>
+          <div class="inv-num">${escapeHTML(invoice.invoiceNumber)}</div>
+        </div>
+      </div>
+
+      <div class="inv-meta-grid">
+        <div><div class="label">Invoice Date</div><div class="val mono">${fmtDate(invoice.invoiceDate)}</div></div>
+        <div><div class="label">Due Date</div><div class="val mono">${fmtDate(invoice.dueDate)}</div></div>
+        <div><div class="label">Status</div><div class="val"><span class="stamp ${invoice.status.toLowerCase()}">${invoice.status}</span></div></div>
+      </div>
+
+      <div class="bill-to">
+        <div class="label">Bill To</div>
+        <div class="cust-name">${escapeHTML(invoice.customer.name)}</div>
+        <div class="cust-meta">
+          ${escapeHTML(invoice.customer.address || '')}<br>
+          ${escapeHTML(invoice.customer.email || '')}${invoice.customer.email && invoice.customer.phone ? ' · ' : ''}${escapeHTML(invoice.customer.phone || '')}
+        </div>
+      </div>
+
+      <table class="inv-items">
+        <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr></thead>
+        <tbody>${itemsRows}</tbody>
+      </table>
+
+      <div class="inv-totals">
+        <div class="row"><span>Subtotal</span><span class="amt">₹${fmtMoney(invoice.subtotal)}</span></div>
+        <div class="row"><span>Discount (${invoice.discountPct}%)</span><span class="amt">−₹${fmtMoney(invoice.discount)}</span></div>
+        <div class="row"><span>Tax (${invoice.taxPct}%)</span><span class="amt">+₹${fmtMoney(invoice.tax)}</span></div>
+        <div class="row grand"><span>Grand Total</span><span class="amt">₹${fmtMoney(invoice.grandTotal)}</span></div>
+      </div>
+
+      <div class="inv-foot">
+        <div class="block"><div class="label">Payment Terms</div>${escapeHTML(invoice.paymentTerms || '—')}</div>
+        <div class="block"><div class="label">Notes</div>${escapeHTML(invoice.notes || '—')}</div>
+      </div>
+
+      <div class="inv-pay-sign">
+        ${upiLink ? `
+        <div class="pay-block">
+          <div class="label">Scan to Pay (UPI)</div>
+          <img src="${qrImageUrl(upiLink, 200)}" alt="UPI payment QR code" width="110" height="110">
+          <div class="upi-id">${escapeHTML(invoice.seller.upiId)}</div>
+        </div>` : `<div></div>`}
+        <div class="sign-block">
+          <div class="sig-slot">${invoice.signature ? `<img src="${invoice.signature}" class="sig-img" alt="Authorised signature">` : ''}</div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Authorised Signature</div>
+          <div class="sig-name">${escapeHTML(invoice.seller.name || '')}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const content = `
+    <div class="preview-toolbar no-print">
+      <div class="left">
+        <a href="#/edit?id=${invoice.id}" class="btn btn-ghost btn-sm">Edit Invoice</a>
+        <select id="statusSelect" class="btn btn-ghost btn-sm" style="padding:7px 10px;">${statusOptions}</select>
+      </div>
+      <div class="left">
+        <button class="btn btn-ghost btn-sm" id="backBtn">Back to History</button>
+        <button class="btn btn-primary btn-sm" id="printBtn">Print / Save as PDF</button>
+      </div>
+    </div>
+    ${sheet}
+  `;
+
+  document.getElementById('app').innerHTML = appShell('/history', 'Invoice Preview', 'Preview', content);
+  mountShellEvents();
+
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+  document.getElementById('backBtn').addEventListener('click', ()=> location.hash = '#/history');
+  document.getElementById('statusSelect').addEventListener('change', (e)=>{
+    const invoices = getAll(DB.invoices);
+    const idx = invoices.findIndex(i=>i.id===invoice.id);
+    if(idx>=0){ invoices[idx].status = e.target.value; setAll(DB.invoices, invoices); showToast('Status updated to ' + e.target.value + '.'); }
+  });
+}
+
+/* ================================================================
+   VIEW: HISTORY
+   ================================================================ */
+function renderHistory(){
+  const user = currentUser();
+  const content = `
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="Search by invoice number or customer name...">
+      <select id="statusFilter">
+        <option value="">All statuses</option>
+        <option value="Draft">Draft</option>
+        <option value="Generated">Generated</option>
+        <option value="Pending">Pending</option>
+        <option value="Paid">Paid</option>
+      </select>
+      <input type="date" id="dateFilter" title="Filter by invoice date">
+    </div>
+    <div class="card" style="padding:22px 24px;">
+      <table class="ledger-table">
+        <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th class="num">Amount</th><th>Status</th></tr></thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('app').innerHTML = appShell('/history', 'Invoice History', 'All Invoices', content);
+  mountShellEvents();
+
+  function draw(){
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    const date = document.getElementById('dateFilter').value;
+    let invoices = getAll(DB.invoices).filter(i => i.userId === user.id);
+    if(q){
+      invoices = invoices.filter(i => i.invoiceNumber.toLowerCase().includes(q) || i.customer.name.toLowerCase().includes(q));
+    }
+    if(status){ invoices = invoices.filter(i => i.status === status); }
+    if(date){ invoices = invoices.filter(i => i.invoiceDate === date); }
+    invoices.sort((a,b)=> b.createdAt - a.createdAt);
+
+    const body = document.getElementById('historyBody');
+    body.innerHTML = invoices.length ? invoices.map(rowHTML).join('') :
+      `<tr class="empty-row"><td colspan="5">No invoices match your search.</td></tr>`;
+    body.querySelectorAll('tr[data-id]').forEach(tr=>{
+      tr.addEventListener('click', ()=> location.hash = '#/preview?id='+tr.dataset.id);
+    });
+  }
+
+  document.getElementById('searchInput').addEventListener('input', draw);
+  document.getElementById('statusFilter').addEventListener('change', draw);
+  document.getElementById('dateFilter').addEventListener('change', draw);
+  draw();
+}
+
+/* ================================================================
+   VIEW: PROFILE
+   ================================================================ */
+function renderProfile(){
+  const user = currentUser();
+  const content = `
+    <div class="card profile-card">
+      <div id="profileMsg" class="form-msg"></div>
+      <form id="profileForm">
+        <div class="field"><label>Name</label><input id="p_name" value="${escapeHTML(user.name)}"></div>
+        <div class="field" id="f-p_email"><label>Email</label><input id="p_email" type="email" value="${escapeHTML(user.email)}"><div class="field-error">Enter a valid email address.</div></div>
+        <div class="field"><label>Business Name</label><input id="p_business" value="${escapeHTML(user.businessName || '')}" placeholder="Used as the seller name on invoices"></div>
+        <div class="field"><label>Phone Number</label><input id="p_phone" value="${escapeHTML(user.phone || '')}"></div>
+        <div class="field"><label>Address</label><input id="p_address" value="${escapeHTML(user.address || '')}"></div>
+        <div class="field" style="margin-bottom:0;">
+          <label>UPI ID (for payment QR on invoices)</label>
+          <input id="p_upi" value="${escapeHTML(user.upiId || '')}" placeholder="yourname@bank">
+        </div>
+        <div class="form-actions" style="justify-content:flex-start;">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card profile-card sig-pad-card" style="margin-top:20px;">
+      <h3>Authorised Signature</h3>
+      <p class="helper-text" style="margin-bottom:14px;">Draw your signature below with your mouse or finger. It's captured onto every invoice you generate or save from now on — older invoices keep whatever signature was current when they were made.</p>
+      <canvas id="sigPad" width="360" height="140"></canvas>
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost btn-sm" id="clearSigBtn">Clear</button>
+        <button type="button" class="btn btn-primary btn-sm" id="saveSigBtn">Save Signature</button>
+        <span class="helper-text" id="sigStatus" style="margin:0;"></span>
+      </div>
+    </div>`;
+
+  document.getElementById('app').innerHTML = appShell('/profile', 'Your Profile', 'Account', content);
+  mountShellEvents();
+
+  document.getElementById('profileForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const emailField = document.getElementById('f-p_email');
+    emailField.classList.remove('has-error');
+    const email = document.getElementById('p_email').value.trim();
+    if(!isValidEmail(email)){ emailField.classList.add('has-error'); return; }
+
+    const users = getAll(DB.users);
+    const dup = users.find(u => u.id !== user.id && u.email.toLowerCase() === email.toLowerCase());
+    const msg = document.getElementById('profileMsg');
+    if(dup){
+      msg.textContent = 'That email is already used by another account.';
+      msg.className = 'form-msg error show';
+      return;
+    }
+    const idx = users.findIndex(u=>u.id===user.id);
+    users[idx] = {
+      ...users[idx],
+      name: document.getElementById('p_name').value.trim() || users[idx].name,
+      email,
+      businessName: document.getElementById('p_business').value.trim(),
+      phone: document.getElementById('p_phone').value.trim(),
+      address: document.getElementById('p_address').value.trim(),
+      upiId: document.getElementById('p_upi').value.trim(),
+    };
+    setAll(DB.users, users);
+    msg.textContent = 'Profile updated successfully.';
+    msg.className = 'form-msg success show';
+    showToast('Profile saved.');
+  });
+
+  const sigCanvas = document.getElementById('sigPad');
+  const pad = initSignaturePad(sigCanvas, user.signature || '');
+  const sigStatus = document.getElementById('sigStatus');
+  if(user.signature){ sigStatus.textContent = 'Saved signature loaded.'; }
+
+  document.getElementById('clearSigBtn').addEventListener('click', ()=>{
+    pad.clear();
+    sigStatus.textContent = '';
+  });
+  document.getElementById('saveSigBtn').addEventListener('click', ()=>{
+    const users = getAll(DB.users);
+    const idx = users.findIndex(u=>u.id===user.id);
+    users[idx].signature = pad.isEmpty() ? '' : pad.toDataURL();
+    setAll(DB.users, users);
+    sigStatus.textContent = pad.isEmpty() ? 'Signature cleared.' : 'Signature saved.';
+    showToast(pad.isEmpty() ? 'Signature cleared.' : 'Signature saved.');
+  });
+}
+</script>
+</body>
+</html>
